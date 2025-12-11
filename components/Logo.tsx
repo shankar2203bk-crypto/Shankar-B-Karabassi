@@ -40,10 +40,10 @@ export const Logo: React.FC<{ className?: string }> = ({ className = "w-32 h-32"
     {/* Text */}
     <path id="curve" d="M 30 150 Q 100 170 170 150" fill="transparent" />
     <text width="200" textAnchor="middle" x="100" y="145" fontFamily="sans-serif" fontWeight="800" fontSize="22" fill="#ffedd5" letterSpacing="1.5" style={{textShadow: '1px 1px 0px #7c2d12'}}>
-      PROMPT
+      FORGE
     </text>
     <text width="200" textAnchor="middle" x="100" y="172" fontFamily="sans-serif" fontWeight="900" fontSize="24" fill="#1e293b" letterSpacing="3">
-      SCOPE
+      IQ
     </text>
   </svg>
 );

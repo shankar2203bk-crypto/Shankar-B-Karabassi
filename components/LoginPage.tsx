@@ -48,7 +48,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     {isSignUp ? 'Create an Account' : 'Welcome'}
                  </h2>
                  <p className="text-slate-400 text-sm">
-                    {isSignUp ? 'Join Prompt Scope to master LLMs' : 'Sign in to access your prompt workspace'}
+                    {isSignUp ? 'Join ForgeIQ to master LLMs' : 'Sign in to access your prompt workspace'}
                  </p>
             </div>
 
