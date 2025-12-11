@@ -44,6 +44,17 @@ const analysisSchema: Schema = {
   required: ["score", "level", "summary", "strengths", "weaknesses", "suggestions", "improvedPrompt"],
 };
 
+const cleanJson = (text: string): string => {
+  let clean = text.trim();
+  // Remove markdown code blocks if present
+  if (clean.startsWith('```json')) {
+    clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (clean.startsWith('```')) {
+    clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  return clean;
+};
+
 export const analyzePrompt = async (prompt: string): Promise<AnalysisResult> => {
   try {
     const response = await ai.models.generateContent({
@@ -67,7 +78,13 @@ export const analyzePrompt = async (prompt: string): Promise<AnalysisResult> => 
     if (!text) {
       throw new Error("No analysis generated");
     }
-    return JSON.parse(text) as AnalysisResult;
+    
+    try {
+      return JSON.parse(cleanJson(text)) as AnalysisResult;
+    } catch (e) {
+      console.error("Failed to parse JSON:", text);
+      throw new Error("Failed to parse analysis result");
+    }
   } catch (error) {
     console.error("Error analyzing prompt:", error);
     throw error;
