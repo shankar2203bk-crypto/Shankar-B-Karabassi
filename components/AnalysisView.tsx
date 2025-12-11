@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { AnalysisResult, DifficultyLevel } from '../types';
-import { CheckCircle, AlertTriangle, ArrowRight, Star, BarChart2, Terminal, Play, Loader2, Image as ImageIcon, FileText } from 'lucide-react';
+import { AnalysisResult, DifficultyLevel, WebSource } from '../types';
+import { CheckCircle, AlertTriangle, ArrowRight, Star, BarChart2, Terminal, Play, Loader2, Image as ImageIcon, FileText, Copy, Globe, ExternalLink } from 'lucide-react';
 import { executePrompt, executeImagePrompt } from '../services/geminiService';
+import { ToastType } from './Toast';
 
 interface AnalysisViewProps {
   result: AnalysisResult;
   prompt: string;
   onUseImproved: (prompt: string) => void;
+  onShowToast: (message: string, type: ToastType) => void;
 }
 
-const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImproved }) => {
+const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImproved, onShowToast }) => {
   const [currentOutput, setCurrentOutput] = useState<string>('');
+  const [currentSources, setCurrentSources] = useState<WebSource[] | undefined>(undefined);
+  
   const [improvedOutput, setImprovedOutput] = useState<string>('');
+  const [improvedSources, setImprovedSources] = useState<WebSource[] | undefined>(undefined);
+
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const [loadingImproved, setLoadingImproved] = useState(false);
   
@@ -21,13 +27,16 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
 
   const handleRunCurrent = async () => {
     setLoadingCurrent(true);
+    setCurrentSources(undefined);
     try {
       const res = currentMode === 'image' 
         ? await executeImagePrompt(prompt)
         : await executePrompt(prompt);
-      setCurrentOutput(res);
+      setCurrentOutput(res.content);
+      setCurrentSources(res.webSources);
     } catch (error) {
       setCurrentOutput("Error generating output.");
+      onShowToast("Failed to generate output", "error");
     } finally {
       setLoadingCurrent(false);
     }
@@ -35,16 +44,24 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
 
   const handleRunImproved = async () => {
     setLoadingImproved(true);
+    setImprovedSources(undefined);
     try {
       const res = improvedMode === 'image'
         ? await executeImagePrompt(result.improvedPrompt)
         : await executePrompt(result.improvedPrompt);
-      setImprovedOutput(res);
+      setImprovedOutput(res.content);
+      setImprovedSources(res.webSources);
     } catch (error) {
       setImprovedOutput("Error generating output.");
+      onShowToast("Failed to generate output", "error");
     } finally {
       setLoadingImproved(false);
     }
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    onShowToast("Copied to clipboard!", "success");
   };
 
   const getScoreColor = (score: number) => {
@@ -62,7 +79,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
     }
   };
 
-  const renderOutput = (content: string, isLoading: boolean) => {
+  const renderOutput = (content: string, isLoading: boolean, sources?: WebSource[]) => {
     if (isLoading) {
       return (
         <span className="flex items-center gap-2 text-slate-500">
@@ -78,7 +95,26 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
         </div>
       );
     }
-    return content;
+    return (
+      <div className="flex flex-col gap-4">
+        <div>{content}</div>
+        {sources && sources.length > 0 && (
+          <div className="pt-3 border-t border-white/10">
+             <div className="flex items-center gap-2 mb-2 text-xs text-slate-500 font-semibold uppercase">
+                <Globe className="w-3 h-3" /> Sources
+             </div>
+             <div className="flex flex-wrap gap-2">
+                {sources.map((s, i) => (
+                  <a key={i} href={s.uri} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded-full text-slate-300 transition-colors">
+                    {s.title}
+                    <ExternalLink className="w-2 h-2 opacity-50" />
+                  </a>
+                ))}
+             </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -193,7 +229,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
         
         {(currentOutput || loadingCurrent) && (
           <div className="p-4 bg-black/40 font-mono text-sm text-slate-300 border-t border-slate-800/50 leading-relaxed whitespace-pre-wrap">
-             {renderOutput(currentOutput, loadingCurrent)}
+             {renderOutput(currentOutput, loadingCurrent, currentSources)}
           </div>
         )}
       </div>
@@ -222,24 +258,34 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ result, prompt, onUseImprov
           <Star className="w-32 h-32 text-primary-500" />
         </div>
         
-        <h3 className="text-white font-semibold mb-3">Suggested Master Prompt</h3>
-        <div className="bg-black/40 rounded-lg p-4 font-mono text-sm text-green-300 mb-4 whitespace-pre-wrap border border-white/10">
+        <div className="flex justify-between items-start mb-3 relative z-10">
+            <h3 className="text-white font-semibold">Suggested Master Prompt</h3>
+            <button 
+              onClick={() => handleCopy(result.improvedPrompt)}
+              className="text-slate-400 hover:text-white transition-colors p-1"
+              title="Copy to clipboard"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+        </div>
+
+        <div className="bg-black/40 rounded-lg p-4 font-mono text-sm text-green-300 mb-4 whitespace-pre-wrap border border-white/10 relative z-10">
           {result.improvedPrompt}
         </div>
 
         {/* Improved Prompt Output Preview */}
         {improvedOutput && (
-           <div className="mb-4 bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+           <div className="mb-4 bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 relative z-10">
               <div className="flex items-center gap-2 text-xs text-slate-400 mb-2 uppercase tracking-wider font-semibold">
                 <Terminal className="w-3 h-3" /> Output Preview
               </div>
               <div className="font-mono text-sm text-slate-300 whitespace-pre-wrap">
-                 {renderOutput(improvedOutput, false)}
+                 {renderOutput(improvedOutput, false, improvedSources)}
               </div>
            </div>
         )}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 relative z-10">
             <button 
               onClick={() => onUseImproved(result.improvedPrompt)}
               className="bg-primary-600 hover:bg-primary-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"

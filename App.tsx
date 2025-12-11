@@ -6,6 +6,7 @@ import AnalysisView from './components/AnalysisView';
 import SimulationView from './components/SimulationView';
 import LoginPage from './components/LoginPage';
 import Logo from './components/Logo';
+import Toast, { ToastType } from './components/Toast';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -14,9 +15,15 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [simulationPrompt, setSimulationPrompt] = useState<string>('');
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+
+  const showToast = (message: string, type: ToastType) => {
+    setToast({ message, type });
+  };
 
   const handleLogin = () => {
     setIsAuthenticated(true);
+    showToast("Welcome to ForgeIQ", "success");
   };
 
   const handleLogout = () => {
@@ -36,7 +43,7 @@ const App: React.FC = () => {
       setAnalysisResult(result);
     } catch (error) {
       console.error("Analysis failed", error);
-      // In a real app, show a toast notification here
+      showToast("Analysis failed. Please try again.", "error");
     } finally {
       setIsAnalyzing(false);
     }
@@ -50,6 +57,7 @@ const App: React.FC = () => {
   const handleApplyImproved = (improved: string) => {
     setPrompt(improved);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast("Applied improved prompt to editor", "success");
   };
 
   const handleClear = () => {
@@ -67,6 +75,14 @@ const App: React.FC = () => {
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-600/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-slate-700/20 rounded-full blur-[120px]" />
       </div>
+
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
 
       <div className="relative z-10 max-w-5xl mx-auto px-4 py-8 md:py-12 flex flex-col min-h-screen">
         {!isAuthenticated ? (
@@ -189,6 +205,8 @@ const App: React.FC = () => {
                         if (prompt) {
                             setSimulationPrompt(prompt);
                             setActiveTab('simulation');
+                        } else {
+                            showToast("Please enter a prompt first", "info");
                         }
                       }}
                       className={`flex-1 py-4 text-sm font-medium transition-colors border-b-2 flex items-center justify-center gap-2
@@ -216,12 +234,12 @@ const App: React.FC = () => {
                         <AnalysisView 
                           result={analysisResult} 
                           prompt={prompt} 
-                          onUseImproved={handleApplyImproved} 
+                          onUseImproved={handleApplyImproved}
+                          onShowToast={showToast}
                         />
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-600 text-center p-8">
                            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-700">
-                               {/* Placeholder for small icon if needed, or just keep simple */}
                               <BarChart className="w-10 h-10 text-slate-600" />
                            </div>
                            <h3 className="text-lg font-medium text-slate-400 mb-2">No Analysis Yet</h3>
@@ -229,7 +247,10 @@ const App: React.FC = () => {
                         </div>
                       )
                     ) : (
-                      <SimulationView prompt={simulationPrompt} />
+                      <SimulationView 
+                        prompt={simulationPrompt} 
+                        onShowToast={showToast}
+                      />
                     )}
                   </div>
                 </div>

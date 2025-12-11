@@ -19,4 +19,14 @@ export interface Message {
   content: string;
 }
 
+export interface WebSource {
+  uri: string;
+  title: string;
+}
+
+export interface SimulationResponse {
+  content: string;
+  webSources?: WebSource[];
+}
+
 export type Tab = 'analysis' | 'simulation';

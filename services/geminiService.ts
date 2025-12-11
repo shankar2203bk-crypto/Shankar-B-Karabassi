@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalysisResult, DifficultyLevel } from "../types";
+import { AnalysisResult, SimulationResponse } from "../types";
 
 // Initialize the Gemini API client
 // Note: process.env.API_KEY is automatically injected by the environment.
@@ -74,20 +74,37 @@ export const analyzePrompt = async (prompt: string): Promise<AnalysisResult> => 
   }
 };
 
-export const executePrompt = async (prompt: string): Promise<string> => {
+export const executePrompt = async (prompt: string, useGrounding: boolean = true): Promise<SimulationResponse> => {
   try {
+    const config: any = {};
+    
+    if (useGrounding) {
+      config.tools = [{ googleSearch: {} }];
+    }
+
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
+      config: config
     });
-    return response.text || "No output generated.";
+
+    // Extract grounding chunks if available
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const webSources = groundingChunks
+      .map(chunk => chunk.web)
+      .filter((web): web is { uri: string; title: string } => !!web);
+
+    return {
+      content: response.text || "No output generated.",
+      webSources: webSources.length > 0 ? webSources : undefined
+    };
   } catch (error) {
     console.error("Error executing prompt:", error);
-    return "Error: Could not execute prompt. Please try again.";
+    return { content: "Error: Could not execute prompt. Please try again." };
   }
 };
 
-export const executeImagePrompt = async (prompt: string): Promise<string> => {
+export const executeImagePrompt = async (prompt: string): Promise<SimulationResponse> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -100,13 +117,15 @@ export const executeImagePrompt = async (prompt: string): Promise<string> => {
     const parts = response.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
       if (part.inlineData && part.inlineData.data) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        return { 
+          content: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` 
+        };
       }
     }
     
-    return "No image generated. The model may have returned only text.";
+    return { content: "No image generated. The model may have returned only text." };
   } catch (error) {
     console.error("Error generating image:", error);
-    return "Error: Could not generate image. Please try again.";
+    return { content: "Error: Could not generate image. Please try again." };
   }
 };
